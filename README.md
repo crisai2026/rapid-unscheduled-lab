@@ -4,6 +4,7 @@ A rocket lab and flight simulator that runs in the browser. Build a rocket from 
 
 ## Play
 
+Online: https://crisai2026.github.io/rapid-unscheduled-lab/
 Open `index.html` in a browser, or turn on GitHub Pages (Settings → Pages → Deploy from branch `main`, folder `/root`).
 
 ## What it simulates
