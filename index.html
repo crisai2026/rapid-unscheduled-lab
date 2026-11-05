@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rapid Unscheduled Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}body{margin:0}img{max-width:100%}
+/* Layout: blueprint workbench. Build = parts | 3D rocket on a stand | numbers. Fly = 3D world + telemetry rail. Single dark blueprint look by choice. */
+:root{
+  --bg:#0c2136; --grid:#16334f; --panel:#11304c; --panel2:#0f2943; --line:#2c5a80;
+  --ink:#e7eff7; --muted:#8eafcb; --accent:#ff8a2a;
+  --good:#5fd38d; --warn:#f2c14e; --bad:#ff6363;
+  --thrust:#ff8a2a; --weight:#6db7ff; --drag:#ff6fa3; --com:#f2c14e; --cop:#4fe0e0;
+  --display:'Oxanium','Segoe UI',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{
+  background-color:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 28px;
+}
+.wrap{max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{font-family:var(--display);font-weight:700;font-size:26px;margin:0;letter-spacing:.04em;text-transform:uppercase}
+.brand span{font-family:var(--mono);color:var(--muted);font-size:12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+button,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 12px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.on,button.primary{background:var(--accent);color:#1a0d00;border-color:var(--accent);font-weight:600}
+button.danger{background:var(--bad);color:#2a0000;border-color:var(--bad);font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+.label{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted)}
+.panel{background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+
+.lab{display:grid;grid-template-columns:270px minmax(0,1fr) 340px;gap:14px;align-items:start}
+.cat{display:flex;flex-direction:column;gap:14px}
+.catgroup{display:flex;flex-direction:column;gap:6px}
+.part{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;text-align:left}
+.part:hover{border-color:var(--accent)}
+.part b{font-weight:600;font-size:13px}
+.part small{grid-column:1;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.part .kg{grid-row:1/3;grid-column:2;font-family:var(--mono);font-size:12px;color:var(--accent)}
+.part.sel{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.stage{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.view3d{position:relative;width:100%;height:580px;touch-action:none}
+.view3d canvas{display:block;width:100%!important;height:100%!important}
+.stagelabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.brk{position:absolute;border:2px solid var(--accent);border-left:0;width:14px;border-radius:0 6px 6px 0;opacity:.85}
+.brk.dim{border-color:var(--muted);opacity:.6}
+.brk span{position:absolute;left:20px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;white-space:nowrap;background:color-mix(in srgb,var(--bg) 80%,transparent);padding:2px 6px;border-radius:4px;color:var(--ink)}
+#chart{width:100%;height:180px;display:block}
+.goal{height:8px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;margin-top:4px}
+.goal div{height:100%;width:0;background:var(--accent)}
+.overlay-legend{position:absolute;left:12px;top:10px;display:flex;flex-direction:column;gap:4px;font-family:var(--mono);font-size:11px;pointer-events:none}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.stagebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.stackbar{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px}
+.chip{font-family:var(--mono);font-size:11px;padding:4px 8px;border-radius:99px;background:var(--panel2);border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center}
+.chip button{padding:0 4px;border:0;background:none;color:var(--muted);line-height:1}
+.chip button:hover{color:var(--bad)}
+.examples{display:flex;flex-wrap:wrap;gap:6px}
+.examples button{font-size:12px;padding:5px 9px}
+.stats{display:flex;flex-direction:column;gap:12px}
+.big{display:flex;align-items:baseline;gap:8px}
+.big .v{font-family:var(--display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums}
+.big .u{font-family:var(--mono);color:var(--muted)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-variant-numeric:tabular-nums;margin:0}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--mono);text-align:right}
+.massbar{display:flex;height:16px;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.massbar div{height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid currentColor;white-space:nowrap}
+.good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)}
+.notes{display:flex;flex-direction:column;gap:6px}
+.notes p{margin:0;color:var(--muted);font-size:13px}
+.notes p b{color:var(--ink);font-weight:500}
+.warnlist{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;list-style:none;font-size:13px}
+.tablewrap{overflow-x:auto}
+table.stages{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:12px}
+table.stages th{font-family:var(--mono);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:right;padding:4px 4px;border-bottom:1px solid var(--line)}
+table.stages td{font-family:var(--mono);text-align:right;padding:5px 4px;border-bottom:1px solid color-mix(in srgb,var(--line) 50%,transparent)}
+table.stages th:first-child,table.stages td:first-child{text-align:left}
+table.stages tr.total td{color:var(--accent);border-bottom:0;font-weight:500}
+
+.launch{display:grid;grid-template-columns:minmax(0,1fr) 310px;gap:14px;align-items:start}
+.flight{padding:0;overflow:hidden}
+#flyView{height:640px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;border-top:1px solid var(--line)}
+.controls .grow{flex:1}
+.throttle,.check{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px}
+input[type=range]{accent-color:var(--accent);width:120px}
+input[type=checkbox]{accent-color:var(--accent)}
+.tele{display:flex;flex-direction:column;gap:12px}
+.loadbar{height:8px;border-radius:4px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;margin-top:4px}
+.loadbar div{height:100%;width:0;background:var(--good)}
+.toast{position:absolute;left:50%;top:16px;transform:translateX(-50%);background:var(--accent);color:#1a0d00;font-family:var(--display);font-weight:700;letter-spacing:.05em;padding:6px 14px;border-radius:6px;transition:opacity .4s;pointer-events:none;white-space:nowrap}
+.hint{position:absolute;left:50%;top:60px;transform:translateX(-50%);background:color-mix(in srgb,var(--bg) 80%,transparent);padding:8px 14px;border-radius:6px;font-size:13px;pointer-events:none;text-align:center;max-width:calc(100% - 32px)}
+.count{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);font-family:var(--display);font-weight:700;font-size:min(16vw,120px);letter-spacing:.04em;color:#fff;text-shadow:0 4px 30px rgba(0,0,0,.6);pointer-events:none;text-align:center;line-height:1}
+.count small{display:block;font-size:16px;letter-spacing:.12em;font-family:var(--mono);color:var(--accent);margin-top:10px;text-transform:uppercase}
+.stageTag{position:absolute;right:12px;top:12px;font-family:var(--mono);font-size:12px;background:color-mix(in srgb,var(--bg) 80%,transparent);padding:6px 10px;border-radius:6px;pointer-events:none;text-align:right}
+.summary{position:absolute;inset:auto 16px 16px 16px;background:color-mix(in srgb,var(--bg) 92%,transparent);border:1px solid var(--accent);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.summary h2{margin:0;font-family:var(--display);font-size:20px;letter-spacing:.04em}
+.summary .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.summary .grid div{display:flex;flex-direction:column}
+.summary .grid span{font-family:var(--mono);font-size:16px}
+.log{margin:0;padding:0;list-style:none;font-family:var(--mono);font-size:12px;display:flex;flex-direction:column;gap:4px;max-height:200px;overflow:auto}
+.log li span{color:var(--muted);margin-right:6px}
+kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:3px;padding:0 4px;color:var(--muted)}
+button.on kbd,button.primary kbd,button.danger kbd{color:#1a0d00;border-color:#1a0d00}
+@media (max-width:1060px){.lab{grid-template-columns:1fr 1fr}.stage{grid-column:1/-1;order:-1}.launch{grid-template-columns:1fr}}
+@media (max-width:640px){.lab{grid-template-columns:1fr}.view3d{height:440px}#flyView{height:480px}}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><h1>Rapid Unscheduled Lab</h1><span>rocket simulator · phase 3 · staging + sound</span></div>
+    <nav class="tabs"><button id="btnSound" title="Sound on or off">Sound on <kbd>M</kbd></button><button id="tabLab" class="on">1 · Build</button><button id="tabLaunch">2 · Fly</button></nav>
+  </header>
+
+  <section id="viewLab" class="lab">
+    <aside class="panel cat" id="catalogue"></aside>
+    <div class="panel stage">
+      <div class="view3d" id="labView">
+        <div class="stagelabels" id="stageLabels"></div>
+        <div class="overlay-legend">
+          <span><i class="dot" style="background:var(--com)"></i>centre of mass</span>
+          <span><i class="dot" style="background:var(--cop)"></i>centre of pressure</span>
+          <span style="color:var(--accent)">glowing = the stage you are editing</span>
+          <span style="color:var(--muted)">drag to turn · scroll to zoom</span>
+        </div>
+      </div>
+      <div class="stagebar" id="stagebar"></div>
+      <div class="stackbar" id="stackbar"></div>
+    </div>
+    <aside class="stats">
+      <div class="panel">
+        <div class="label">Total mass on the pad</div>
+        <div class="big"><span class="v" id="sMass">0</span><span class="u">kg</span></div>
+        <div class="massbar" id="massbar"></div>
+        <div class="legend" id="massLegend" style="margin-top:8px"></div>
+      </div>
+      <div class="panel">
+        <div class="label" style="margin-bottom:8px">Stages · fired bottom first</div>
+        <div class="tablewrap"><table class="stages" id="stageTable"></table></div>
+        <dl class="kv" id="kv" style="margin-top:10px"></dl>
+        <ul class="warnlist" id="warns" style="margin-top:10px"></ul>
+      </div>
+      <div class="panel">
+        <div class="label" style="margin-bottom:8px">Example rockets</div>
+        <div class="examples" id="examples"></div>
+      </div>
+      <div class="panel notes">
+        <div class="label">Why stages work</div>
+        <p><b>An empty tank is dead weight.</b> Every kilo you keep carrying makes the engine work harder.</p>
+        <p><b>Dropping it</b> means the next engine only pushes what is left, so the same fuel gives much more speed (Δv).</p>
+        <p><b>Solid boosters</b> add a big kick at liftoff. Once lit they can't be throttled or switched off, and they drop away when empty.</p>
+        <p><b>Upper stages</b> fly in thin air, so they need less push and fins matter less. The autopilot steers with the engine.</p>
+      </div>
+    </aside>
+  </section>
+
+  <section id="viewLaunch" class="launch" hidden>
+    <div class="panel flight">
+      <div class="view3d" id="flyView">
+        <div class="toast" id="toast" style="opacity:0"></div>
+        <div class="hint" id="hint"></div>
+        <div class="count" id="count" hidden></div>
+        <div class="stageTag" id="stageTag"></div>
+        <div class="summary" id="summary" hidden></div>
+      </div>
+      <div class="controls">
+        <button class="primary" id="btnLaunch">Launch <kbd>Space</kbd></button>
+        <button id="btnCut">Cut <kbd>X</kbd></button>
+        <label class="throttle" for="throttle">Throttle <input type="range" id="throttle" min="0" max="100" value="100"> <span id="thrVal">100%</span></label>
+        <button id="btnLeft" aria-label="Steer left">◀ <kbd>A</kbd></button>
+        <button id="btnRight" aria-label="Steer right"><kbd>D</kbd> ▶</button>
+        <button id="btnSas" class="on" title="Autopilot holds the heading you steer to">Autopilot <kbd>T</kbd></button>
+        <button id="btnChute">Parachute <kbd>P</kbd></button>
+        <span class="grow"></span>
+        <label class="check" for="optCount"><input type="checkbox" id="optCount" checked> Countdown</label>
+        <label class="check" for="optAuto"><input type="checkbox" id="optAuto" checked> Auto-stage</label>
+        <select id="camMode" aria-label="Camera"><option value="chase">Chase camera</option><option value="ground">Ground camera</option><option value="dropped">Watch dropped stage</option></select>
+        <button id="btnForces" class="on">Forces</button>
+        <span class="label">Time</span>
+        <button data-warp="1" class="on">1×</button><button data-warp="5">5×</button><button data-warp="20">20×</button><button data-warp="50">50×</button>
+        <button id="btnReset">Reset</button>
+      </div>
+    </div>
+    <aside class="tele">
+      <div class="panel">
+        <div class="label" id="altLabel">Altitude</div>
+        <div class="big"><span class="v" id="tAlt">0</span><span class="u" id="tAltU">m</span></div>
+        <dl class="kv" id="tkv" style="margin-top:6px"></dl>
+        <div style="margin-top:10px"><div class="label">Air load on the body</div><div class="loadbar"><div id="loadFill"></div></div></div>
+        <div style="margin-top:10px"><div class="label" id="goalLabel">Goal: space · 100 km</div><div class="goal"><div id="goalFill"></div></div></div>
+      </div>
+      <div class="panel">
+        <div class="label" style="margin-bottom:6px">Altitude and speed</div>
+        <canvas id="chart" aria-label="Chart of altitude and speed over time"></canvas>
+        <div class="legend" style="margin-top:6px"><span><i style="background:#5fd38d"></i>altitude</span><span><i style="background:#ff8a2a"></i>speed</span><span><i style="background:#8eafcb"></i>stage events</span></div>
+      </div>
+      <div class="panel">
+        <div class="label" style="margin-bottom:6px">Forces right now</div>
+        <dl class="kv" id="fkv"></dl>
+      </div>
+      <div class="panel">
+        <label class="label" for="wind" style="display:block;margin-bottom:6px">Wind at 1 km: <span id="windVal">12</span> m/s</label>
+        <input type="range" id="wind" min="0" max="40" value="12" style="width:100%">
+      </div>
+      <div class="panel">
+        <div class="label" style="margin-bottom:6px">Flight log</div>
+        <ul class="log" id="log"></ul>
+      </div>
+    </aside>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="js/1-config-physics.js"></script>
+<script src="js/2-sound-models.js"></script>
+<script src="js/3-scenes.js"></script>
+<script src="js/4-flight.js"></script>
+<script src="js/5-render-hud.js"></script>
+<script src="js/6-lab-ui.js"></script>
+</body>
+</html>
